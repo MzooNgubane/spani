@@ -166,23 +166,63 @@ src/server       local dashboard
 fixtures/        local HTML forms, so development never hits a real employer
 ```
 
+## Getting started
+
+**Requirements:** Node 22+, Google Chrome, and
+[Claude Code](https://claude.com/claude-code) installed and signed in — the
+agent shells out to it for reasoning, which is what keeps this on a
+subscription rather than metered API credits. No API key needed; if you have
+`ANTHROPIC_API_KEY` set, the agent strips it from the child process so you
+don't silently start paying per token.
+
+```bash
+git clone https://github.com/MzooNgubane/spani
+cd spani
+npm install
+npm run spani -- init     # writes starter files; never overwrites yours
+npm run doctor            # checks the stack and does a live Claude round-trip
+```
+
+`init` creates `data/` with a commented profile template, a document manifest
+template and a config file. Then:
+
+1. **Fill in `data/profile/master.yaml`.** The comments explain the rules at
+   the point you're typing. The one that matters: `null` means UNKNOWN and
+   always escalates to you; `false` means a confirmed no. Don't conflate them.
+2. **Copy your documents** into `data/documents/<category>/`.
+3. **Describe them in `data/documents/manifest.yaml`** — what each file is,
+   whether it's certified, when it expires, and the phrases a form might use
+   for it. There's a worked example to copy.
+4. `npm run spani -- ingest` to load them.
+5. `npm run spani -- review` lists what's still missing, sorted by what
+   actually blocks applications rather than every empty field.
+6. Set `meta.verified_by_human: true` once you've read your profile through.
+   Nothing is submitted while it's false.
+
+Everything in `data/` is gitignored in full. This repository contains no
+personal data; the test fixtures use a fictional applicant.
+
 ## Usage
 
 ```bash
-npm install
-npm run doctor                  # verify the stack, incl. a live Claude round-trip
-npm test                        # 79 tests
-
 npm run spani -- add <url>      # take in an opportunity, assess eligibility
 npm run spani -- queue          # what it would work on next
 npm run spani -- dry-run <url>  # full pipeline, nothing typed, nothing sent
 npm run spani -- apply <url>    # drive it, stopping at the submit button
 npm run spani -- dashboard      # http://127.0.0.1:4317
+npm run spani -- nightly        # the unattended run
+npm test                        # 82 tests
 ```
 
-Your profile, documents and database live in `data/`, which is gitignored in
-its entirety. This repository contains no personal data; the test fixtures use
-a fictional applicant.
+Start with `dry-run` against `fixtures/01-bursary-simple.html` — it exercises
+the whole pipeline against a local form, so you can see what it would do
+without touching anyone's real application.
+
+To run it unattended, `scripts/install-schedule.ps1` registers a nightly task
+on Windows. It runs as one sustained batch at 02:00, because the prompt cache
+has a one-hour TTL and a warm cache is far cheaper than scattered calls. It
+needs an interactive desktop session for the headed browser; a locked screen
+is fine, a logged-off one isn't.
 
 ## Status
 
