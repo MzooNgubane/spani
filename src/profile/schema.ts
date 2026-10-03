@@ -15,7 +15,10 @@ import { z } from 'zod';
 const Nullable = <T extends z.ZodTypeAny>(s: T) => s.nullable().default(null);
 
 export const ContactSchema = z.object({
-  email: z.string().email(),
+  // An empty string is allowed so a freshly generated template loads. It
+  // resolves to UNKNOWN, so the agent escalates rather than filling a blank
+  // email into a form.
+  email: z.union([z.string().email(), z.literal('')]),
   phone: z.string(),
   phone_alt: Nullable(z.string()),
   linkedin: Nullable(z.string()),

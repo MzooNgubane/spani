@@ -99,3 +99,42 @@ describe('document matcher', () => {
     assert.equal(on('CV').best?.entry.key, 'cv');
   });
 });
+
+describe('the generated template is usable', () => {
+  // A fresh clone must not hard-fail the moment someone runs init. The
+  // template ships with empty strings, and zod's .email() rejected those.
+  test('an untouched template profile parses', async () => {
+    const { ProfileSchema } = await import('../src/profile/schema.js');
+    const { PROFILE_TEMPLATE } = await import('../src/setup/templates.js');
+    const YAML = (await import('yaml')).default;
+
+    const raw = YAML.parse(PROFILE_TEMPLATE.replace('REPLACE_DATE', '2026-01-01'));
+    const parsed = ProfileSchema.safeParse(raw);
+    assert.equal(parsed.success, true,
+      parsed.success ? '' : parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '));
+  });
+
+  test('template values resolve to UNKNOWN rather than empty strings', async () => {
+    const { ProfileSchema } = await import('../src/profile/schema.js');
+    const { PROFILE_TEMPLATE } = await import('../src/setup/templates.js');
+    const { resolve, UNKNOWN } = await import('../src/profile/index.js');
+    const YAML = (await import('yaml')).default;
+
+    const p = ProfileSchema.parse(YAML.parse(PROFILE_TEMPLATE.replace('REPLACE_DATE', '2026-01-01')));
+    for (const path of ['personal.contact.email', 'personal.first_name', 'education.current.institution']) {
+      assert.equal(resolve(path, p), UNKNOWN, `${path} must be UNKNOWN, not ""`);
+    }
+  });
+
+  test('the template manifest parses', async () => {
+    const { ManifestSchema } = await import('../src/documents/index.js');
+    const { MANIFEST_TEMPLATE } = await import('../src/setup/templates.js');
+    const YAML = (await import('yaml')).default;
+
+    const raw = YAML.parse(MANIFEST_TEMPLATE.replace('REPLACE_SOURCE_DIR', 'C:\docs'));
+    const parsed = ManifestSchema.safeParse(raw);
+    assert.equal(parsed.success, true);
+    // And its single example document must be unverified.
+    assert.equal(parsed.success && parsed.data.documents[0]!.verified, false);
+  });
+});
