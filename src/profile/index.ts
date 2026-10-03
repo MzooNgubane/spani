@@ -13,7 +13,7 @@ let cached: Profile | null = null;
 export function loadProfile(force = false): Profile {
   if (cached && !force) return cached;
   if (!fs.existsSync(PATHS.masterProfile)) {
-    throw new ProfileError(`No master profile at ${PATHS.masterProfile}. Run: npm run spani init-profile`);
+    throw new ProfileError(`No master profile at ${PATHS.masterProfile}. Run: npm run spani -- init`);
   }
   const parsed = ProfileSchema.safeParse(YAML.parse(fs.readFileSync(PATHS.masterProfile, 'utf8')));
   if (!parsed.success) {

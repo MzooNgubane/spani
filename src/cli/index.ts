@@ -11,7 +11,7 @@ import { loadProfile, unknownPaths, promptablePaths, isBlockingPath, BLOCKING_RE
 import { loadManifest, ingest, matchDocument } from '../documents/index.js';
 
 const commands: Record<string, () => Promise<void>> = {
-  doctor, status, ingest: ingestCmd, review, profile: profileCmd,
+  init: initCmd, doctor, status, ingest: ingestCmd, review, profile: profileCmd,
   'match-doc': matchDoc, snapshot: snapshotCmd, 'dry-run': dryRunCmd, answer: answerCmd, dashboard: dashboardCmd, apply: applyCmd, nightly: nightlyCmd, add: addCmd, queue: queueCmd, mail: mailCmd,
 };
 
@@ -93,8 +93,20 @@ async function doctor(): Promise<void> {
   console.log('\n  SPANI DOCTOR\n' + rule());
   for (const [name, ok, detail] of checks) console.log(`  ${ok ? '✓' : '✗'}  ${name.padEnd(20)} ${detail}`);
   console.log(rule());
+  const failed = checks.filter(([, ok]) => !ok);
   const passed = checks.filter(([, ok]) => ok).length;
   console.log(`  ${passed}/${checks.length} passed\n`);
+
+  // A failing check is only useful if it says what to do about it.
+  if (failed.some(([n]) => n === 'profile' || n === 'document manifest')) {
+    const { nextSteps } = await import('../setup/init.js');
+    console.log('  Looks like a first run. Start here:\n');
+    console.log('      npm run spani -- init\n');
+    console.log('  Then:\n');
+    for (const s of nextSteps().slice(1)) console.log(`      ${s}`);
+    console.log('');
+  }
+
   if (!bridgeOk || leaked.length) process.exitCode = 1;
 }
 
@@ -512,4 +524,21 @@ async function mailCmd(): Promise<void> {
   } finally {
     await closeSession();
   }
+}
+
+/** First-run setup. Safe to run repeatedly; never overwrites your files. */
+async function initCmd(): Promise<void> {
+  const { init, nextSteps } = await import('../setup/init.js');
+  const r = init();
+
+  console.log('\n  SPANI SETUP\n' + rule());
+  for (const f of r.created) console.log(`  created  ${f}`);
+  for (const f of r.skipped) console.log(`  kept     ${f}  (already exists)`);
+
+  console.log(`\n  NEXT\n`);
+  nextSteps().forEach((s, i) => console.log(`   ${i + 1}. ${s}`));
+  console.log(`
+  Nothing can be submitted until you have read data/profile/master.yaml and
+  set meta.verified_by_human to true. That is deliberate.
+`);
 }
