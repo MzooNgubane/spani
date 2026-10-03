@@ -1,0 +1,23 @@
+# ── Personal data. NOTHING in here is ever committed. ──
+data/
+*.pdf
+*.docx
+*.jpg
+*.jpeg
+*.png
+secrets*
+*.key
+*.pem
+
+# Build / deps
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+npm-debug.log*
+
+# OS
+Thumbs.db
+desktop.ini
+scripts/portal-run.ts

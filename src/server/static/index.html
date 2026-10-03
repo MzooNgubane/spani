@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spani</title>
+<style>
+  :root {
+    --bg:#f7f7f6; --card:#fff; --fg:#1a1a19; --mut:#6b6b68; --line:#e2e2df;
+    --acc:#1d4ed8; --warn:#b45309; --bad:#b91c1c; --good:#15803d; --radius:10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#131312; --card:#1c1c1a; --fg:#e9e9e6; --mut:#9a9a95; --line:#32322f;
+      --acc:#60a5fa; --warn:#f59e0b; --bad:#f87171; --good:#4ade80;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#131312; --card:#1c1c1a; --fg:#e9e9e6; --mut:#9a9a95; --line:#32322f;
+    --acc:#60a5fa; --warn:#f59e0b; --bad:#f87171; --good:#4ade80;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:15px/1.5 ui-sans-serif,system-ui,Segoe UI,sans-serif; }
+  .wrap { max-width:1100px; margin:0 auto; padding:28px 16px 64px; }
+  header { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
+  h1 { font-size:1.35rem; margin:0; letter-spacing:-.01em; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--good); display:inline-block; }
+  .sub { color:var(--mut); font-size:.85rem; margin:0 0 24px; }
+  h2 { font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
+       color:var(--mut); margin:30px 0 10px; font-weight:600; }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+          padding:14px 16px; }
+  .tile .n { font-size:1.7rem; font-weight:650; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .tile .k { color:var(--mut); font-size:.8rem; margin-top:2px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+          padding:16px; margin-bottom:10px; }
+  .card.urgent { border-color:var(--warn); border-left-width:4px; }
+  .card.task { border-left:4px solid var(--bad); }
+  .row { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+  .ttl { font-weight:600; }
+  .meta { color:var(--mut); font-size:.83rem; margin-top:3px; }
+  .badge { font-size:.7rem; font-weight:650; text-transform:uppercase; letter-spacing:.05em;
+           padding:3px 8px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
+  .badge.urgent { color:var(--warn); border-color:var(--warn); }
+  .badge.red { color:var(--bad); border-color:var(--bad); }
+  .badge.amber { color:var(--warn); border-color:var(--warn); }
+  .badge.green { color:var(--good); border-color:var(--good); }
+  button { font:inherit; font-weight:550; padding:7px 14px; border-radius:7px;
+           border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#fff; }
+  button:hover { filter:brightness(1.06); }
+  .empty { color:var(--mut); font-size:.88rem; padding:18px; text-align:center;
+           border:1px dashed var(--line); border-radius:var(--radius); }
+  .bar { height:5px; background:var(--line); border-radius:99px; overflow:hidden; margin-top:8px; }
+  .bar i { display:block; height:100%; background:var(--acc); }
+  .bar i.hot { background:var(--warn); }
+  code { font:12px/1.4 ui-monospace,Consolas,monospace; color:var(--mut); }
+  .log { font:12px/1.65 ui-monospace,Consolas,monospace; color:var(--mut);
+         max-height:220px; overflow:auto; }
+  .log b { color:var(--fg); font-weight:500; }
+  img.shot { max-width:100%; border-radius:6px; border:1px solid var(--line); margin-top:10px; }
+  @media (max-width:560px) { .row { flex-direction:column; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Spani</h1>
+    <span class="dot" id="live" title="live"></span>
+    <span class="sub" id="who" style="margin:0"></span>
+  </header>
+  <p class="sub">Local application agent · nothing leaves this machine except the applications themselves.</p>
+
+  <div class="grid" id="tiles"></div>
+
+  <h2>Human action required</h2>
+  <div id="tasks"></div>
+
+  <h2>Awaiting your approval</h2>
+  <div id="approvals"></div>
+
+  <h2>Blocking setup</h2>
+  <div id="setup"></div>
+
+  <h2>Recent activity</h2>
+  <div class="card log" id="log"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+function tile(n, k) { return `<div class="tile"><div class="n">${n}</div><div class="k">${k}</div></div>`; }
+
+function render(s) {
+  $('who').textContent = s.profile.name + (s.profile.verified ? '' : ' — profile not yet verified');
+
+  const c = s.counts;
+  const sum = (...k) => k.reduce((a, x) => a + (c[x] || 0), 0);
+  $('tiles').innerHTML = [
+    tile(s.opportunities, 'Opportunities'),
+    tile(sum('ELIGIBLE','PREPARING','IN_PROGRESS'), 'In progress'),
+    tile(sum('AWAITING_APPROVAL'), 'Awaiting approval'),
+    tile(sum('SUBMITTED'), 'Submitted'),
+    tile(s.tasks.length, 'Need you'),
+    tile(sum('FAILED'), 'Failed'),
+  ].join('');
+
+  const pct = Math.min(100, Math.round(s.budget.spent24h / s.budget.cap * 100));
+  $('tiles').innerHTML += `<div class="tile"><div class="n">$${s.budget.spent24h.toFixed(3)}</div>
+    <div class="k">of $${s.budget.cap.toFixed(2)} today (notional)</div>
+    <div class="bar"><i class="${pct > 80 ? 'hot' : ''}" style="width:${pct}%"></i></div></div>`;
+
+  $('tasks').innerHTML = s.tasks.length ? s.tasks.map((t) => `
+    <div class="card task">
+      <div class="row">
+        <div>
+          <div class="ttl">${esc(t.kind.replace(/_/g,' '))}</div>
+          <div class="meta">${esc(t.prompt)}</div>
+          ${t.context?.url ? `<div class="meta"><code>${esc(t.context.url)}</code></div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="badge urgent">${esc(t.urgency)}</span>
+          <button class="primary" onclick="resolve('${t.id}')">Done</button>
+        </div>
+      </div>
+      ${t.screenshotPath ? `<img class="shot" src="/api/shot?p=${encodeURIComponent(t.screenshotPath)}" alt="">` : ''}
+    </div>`).join('')
+    : '<div class="empty">Nothing needs you right now.</div>';
+
+  $('approvals').innerHTML = s.awaitingApproval.length ? s.awaitingApproval.map((a) => `
+    <div class="card ${a.urgent ? 'urgent' : ''}">
+      <div class="row">
+        <div>
+          <div class="ttl">${esc(a.title)}</div>
+          <div class="meta">${esc(a.organisation || 'Unknown organisation')}
+            · ${a.fields} fields prepared
+            ${a.closingDate ? ' · closes ' + esc(a.closingDate) : ''}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${a.urgent ? '<span class="badge urgent">closing soon</span>' : ''}
+          <span class="badge ${a.riskTier.toLowerCase()}">${esc(a.riskTier)}</span>
+        </div>
+      </div>
+    </div>`).join('')
+    : '<div class="empty">No applications waiting for approval.</div>';
+
+  fetch('/api/review').then((r) => r.json()).then((rv) => {
+    const items = [];
+    if (!s.profile.verified) items.push('Profile is not marked verified — nothing can be submitted');
+    if (rv.blockingPaths?.length) items.push(`${rv.blockingPaths.length} commonly-asked profile fields are unknown`);
+    const unver = s.documents.total - s.documents.verified;
+    if (unver > 0) items.push(`${unver} of ${s.documents.total} documents are unverified — none can be uploaded`);
+    if (rv.encrypted?.length) items.push(`${rv.encrypted.length} password-protected PDF(s): ${rv.encrypted.join(', ')}`);
+    if (rv.documentQuestions?.length) items.push(`${rv.documentQuestions.length} open document questions`);
+    $('setup').innerHTML = items.length
+      ? `<div class="card"><ul style="margin:0;padding-left:20px">${
+          items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
+         <div class="meta" style="margin-top:10px">Run <code>npm run spani -- review</code> for the full checklist.</div></div>`
+      : '<div class="empty">Setup complete.</div>';
+  }).catch(() => {});
+
+  $('log').innerHTML = s.recentLog.length
+    ? s.recentLog.map((l) => `<div><b>${esc(l.ts.slice(11,19))}</b> ${esc(l.event)}</div>`).join('')
+    : '<div>No activity logged yet.</div>';
+}
+
+async function resolve(id) {
+  await fetch(`/api/tasks/${id}/resolve`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ resolvedFrom: 'dashboard' }),
+  });
+}
+
+const src = new EventSource('/api/events');
+src.onmessage = (e) => { $('live').style.background = 'var(--good)'; render(JSON.parse(e.data)); };
+src.onerror = () => { $('live').style.background = 'var(--bad)'; };
+</script>
+</body>
+</html>

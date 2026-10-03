@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run spani:*)",
+      "Bash(npx tsx scripts/portal-run.ts:*)",
+      "Bash(npm test:*)",
+      "Bash(npx tsc:*)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(npm run spani:*)",
+      "Bash(npx tsx scripts/portal-run.ts:*)",
+      "Spani is a local bursary and job application agent operated by the account holder on their own machine, using their own credentials and documents. Signing in to application portals, completing forms, uploading documents and submitting applications are authorised first-party actions."
+    ]
+  }
+}

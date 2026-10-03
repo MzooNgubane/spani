@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ubuntu Graduate Programme — Apply</title>
+<style>
+  :root { --fg:#151515; --mut:#666; --line:#d8d8d8; --acc:#166534; --bg:#fff; }
+  body { font:16px/1.55 system-ui,Segoe UI,sans-serif; color:var(--fg); background:var(--bg);
+         max-width:640px; margin:0 auto; padding:32px 16px; }
+  h1 { font-size:1.4rem; margin:0 0 2px; }
+  .steps { color:var(--mut); font-size:.9rem; margin:0 0 24px; }
+  .panel { display:none; } .panel.on { display:block; }
+  label { display:block; margin:14px 0 4px; font-weight:500; }
+  .req::after { content:" *"; color:#b91c1c; }
+  input[type=text],input[type=email],input[type=tel],select,textarea {
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px;
+    font:inherit; box-sizing:border-box; }
+  textarea { min-height:100px; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:6px;
+           padding:10px 20px; font:inherit; cursor:pointer; margin-top:18px; }
+  .captcha { border:1px solid var(--line); border-radius:8px; padding:16px; margin:18px 0;
+             background:#fafafa; }
+  .captcha label { font-weight:400; display:flex; align-items:center; gap:10px; margin:0; }
+  #err { color:#b91c1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg:#e8e8e8; --mut:#9a9a9a; --line:#3a3a3a; --acc:#22a55b; --bg:#151515; }
+    .captcha { background:#1e1e1e; }
+  }
+</style>
+</head>
+<body>
+<h1>Ubuntu Graduate Programme 2027</h1>
+<p class="steps" id="stepline">Step 1 of 3 — Your details</p>
+
+<!-- Step 1 -->
+<div class="panel on" id="p1">
+  <label class="req" for="fn">Full name</label>
+  <input type="text" id="fn" name="full_name" required>
+
+  <label class="req" for="em">Email</label>
+  <input type="email" id="em" name="email" required>
+
+  <label class="req" for="ph">Contact number</label>
+  <input type="tel" id="ph" name="phone" required>
+
+  <label class="req" for="loc">Preferred work location</label>
+  <select id="loc" name="location" required>
+    <option value="">-- Select --</option>
+    <option>Johannesburg</option><option>Cape Town</option>
+    <option>Durban</option><option>Pretoria</option>
+  </select>
+
+  <button type="button" onclick="go(2)">Continue</button>
+</div>
+
+<!-- Step 2 -->
+<div class="panel" id="p2">
+  <label class="req" for="deg">Qualification</label>
+  <input type="text" id="deg" name="qualification" required>
+
+  <label class="req" for="uni">University</label>
+  <input type="text" id="uni" name="institution" required>
+
+  <label class="req" for="grad">Year of graduation</label>
+  <input type="text" id="grad" name="grad_year" required>
+
+  <label class="req" for="lic">Do you have a valid driver's licence?</label>
+  <select id="lic" name="licence" required>
+    <option value="">-- Select --</option>
+    <option>Yes</option><option>No</option>
+  </select>
+
+  <label class="req" for="why">Why do you want to join Ubuntu?</label>
+  <textarea id="why" name="motivation" maxlength="1200" required></textarea>
+
+  <button type="button" onclick="go(3)">Continue</button>
+</div>
+
+<!-- Step 3: the human-verification gate -->
+<div class="panel" id="p3">
+  <p>Almost done. Please confirm you are human.</p>
+
+  <div class="captcha" data-sitekey="test-sitekey-0000">
+    <label>
+      <input type="checkbox" id="robot"> I'm not a robot
+    </label>
+  </div>
+  <!-- Populated on solve, exactly like a real challenge response field. -->
+  <textarea name="g-recaptcha-response" id="grecap" style="display:none"></textarea>
+
+  <label class="req" for="ack">Reference code sent to you</label>
+  <input type="text" id="ack" name="ref_code" required>
+
+  <div id="err"></div>
+  <button type="button" onclick="finish()">Submit application</button>
+</div>
+
+<script>
+  function go(n) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+    document.getElementById('p' + n).classList.add('on');
+    const titles = { 1: 'Your details', 2: 'Education', 3: 'Verification' };
+    document.getElementById('stepline').textContent = 'Step ' + n + ' of 3 — ' + titles[n];
+  }
+  // Solving the checkbox writes a token, the same signal the real widgets use.
+  document.getElementById('robot').addEventListener('change', function () {
+    document.getElementById('grecap').value = this.checked
+      ? 'FAKE_TOKEN_' + 'x'.repeat(40) : '';
+    document.querySelector('.captcha').style.borderColor = this.checked ? '#166534' : '';
+  });
+  function finish() {
+    const err = document.getElementById('err');
+    if (!document.getElementById('grecap').value) {
+      err.textContent = 'Please complete the human verification.';
+      return;
+    }
+    if (!document.getElementById('ack').value) {
+      err.textContent = 'Reference code is required.';
+      return;
+    }
+    document.body.innerHTML =
+      '<h1>Application submitted</h1><p>Reference: UGP-2027-11934</p>';
+  }
+</script>
+</body>
+</html>
